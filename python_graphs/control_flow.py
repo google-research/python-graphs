@@ -661,7 +661,7 @@ class ControlFlowVisitor(object):
     if not block.exits_from_middle:
       self.raise_through_frames(block, interrupting=True)
 
-  def raise_through_frames(self, block, interrupting=True):
+  def raise_through_frames(self, block, interrupting=True, branch=None):
     """Adds exits for the control flow of a raised exception.
 
     `interrupting` means the exit can occur at any point (exit_from_middle).
@@ -681,7 +681,6 @@ class ControlFlowVisitor(object):
     if frames is None:
       return
 
-    branch = None
     for frame in frames:
       if frame.kind == Frame.TRY_FINALLY:
         # Exit to finally and have finally exit to whatever's next...
@@ -1132,7 +1131,8 @@ class ControlFlowVisitor(object):
     if bare_handler_block is None and previous_handler_block_end is not None:
       # If no exceptions match, then raise up through the frames.
       # (A bare-except will always match.)
-      self.raise_through_frames(previous_handler_block_end, interrupting=False)
+      # Here "False" indicates the final exception header did not match the raised error.
+      self.raise_through_frames(previous_handler_block_end, interrupting=False, branch=False)
 
     if node.orelse:
       else_block = self.visit_list(node.orelse, else_block)
