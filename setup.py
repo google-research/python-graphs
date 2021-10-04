@@ -30,8 +30,9 @@ DEPENDENCIES = [
     'absl-py',
     'astunparse',
     'gast',
-    'six',
+    'networkx',
     'pygraphviz',
+    'six',
 ]
 
 TEST_DEPENDENCIES = [

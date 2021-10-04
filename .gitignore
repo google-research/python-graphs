@@ -1,0 +1,9 @@
+scratch
+
+.DS_Store
+__MACOSX
+
+*~
+__pycache__
+.pytest_cache
+python_graphs.egg-info
