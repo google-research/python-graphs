@@ -300,6 +300,9 @@ class BasicBlock(object):
     self.control_flow_node_indexes = None
 
     self.branches = {}
+    self.except_branches = {}
+    self.reraise_branches = {}
+
     self.exits_from_middle = set()
     self.exits_from_end = set()
     self.node = node
@@ -332,13 +335,18 @@ class BasicBlock(object):
     """Whether this block exits to `block` in the case of an exception."""
     return block in self.next and block in self.exits_from_middle
 
-  def add_exit(self, block, interrupting=False, branch=None):
+  def add_exit(self, block, interrupting=False,
+               branch=None, except_branch=None, reraise_branch=None):
     """Adds an exit from this block to `block`."""
     self.next.add(block)
     block.prev.add(self)
 
     if branch is not None:
       self.branches[branch] = block
+    if except_branch is not None:
+      self.except_branches[except_branch] = block
+    if reraise_branch is not None:
+      self.reraise_branches[reraise_branch] = block
 
     if interrupting:
       self.exits_from_middle.add(block)
