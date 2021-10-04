@@ -616,15 +616,7 @@ class ControlFlowVisitor(object):
 
   def run(self, node):
     start_block = self.graph.start_block
-    exit_block = self.new_block(node=node, label='<exit>', prunable=False)
-    raise_block = self.new_block(node=node, label='<raise>', prunable=False)
-    self.enter_module_frame(exit_block, raise_block)
     end_block = self.visit(node, start_block)
-    end_block.add_exit(exit_block)
-    self.exit_frame()
-    # Move exit and raise blocks to the end of the block list.
-    self.graph.move_block_to_rear(exit_block)
-    self.graph.move_block_to_rear(raise_block)
     self.graph.compact()
 
   def visit(self, node, current_block):
@@ -841,7 +833,16 @@ class ControlFlowVisitor(object):
     raise ValueError('No frame exists to catch the exception.')
 
   def visit_Module(self, node, current_block):
-    return self.visit_list(node.body, current_block)
+    exit_block = self.new_block(node=node, label='<exit>', prunable=False)
+    raise_block = self.new_block(node=node, label='<raise>', prunable=False)
+    self.enter_module_frame(exit_block, raise_block)
+    end_block = self.visit_list(node.body, current_block)
+    end_block.add_exit(exit_block)
+    self.exit_frame()
+    # Move exit and raise blocks to the end of the block list.
+    self.graph.move_block_to_rear(exit_block)
+    self.graph.move_block_to_rear(raise_block)
+    return end_block
 
   def visit_ClassDef(self, node, current_block):
     """Visit a ClassDef node of the AST.
@@ -851,7 +852,7 @@ class ControlFlowVisitor(object):
     """
     # TODO(dbieber): Make sure all statements are handled, such as base classes.
     # http://greentreesnakes.readthedocs.io/en/latest/nodes.html#ClassDef
-    # The body is exceuted before the decorators.
+    # The body is executed before the decorators.
     current_block = self.visit_list(node.body, current_block)
     for decorator in node.decorator_list:
       self.add_new_instruction(current_block, decorator)
