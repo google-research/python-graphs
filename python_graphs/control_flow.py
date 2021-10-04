@@ -63,6 +63,10 @@ class ControlFlowGraph(object):
     self.blocks.append(block)
     return block
 
+  def move_block_to_rear(self, block):
+    self.blocks.remove(block)
+    self.blocks.append(block)
+
   def get_control_flow_nodes(self):
     return self.nodes
 
@@ -240,6 +244,7 @@ class Frame(object):
   """
 
   # Kinds:
+  MODULE = 'module'
   LOOP = 'loop'
   FUNCTION = 'function'
   TRY_EXCEPT = 'try-except'
@@ -611,9 +616,15 @@ class ControlFlowVisitor(object):
 
   def run(self, node):
     start_block = self.graph.start_block
-    end_block = self.visit(node, start_block)
     exit_block = self.new_block(node=node, label='<exit>', prunable=False)
+    raise_block = self.new_block(node=node, label='<raise>', prunable=False)
+    self.enter_module_frame(exit_block, raise_block)
+    end_block = self.visit(node, start_block)
     end_block.add_exit(exit_block)
+    self.exit_frame()
+    # Move exit and raise blocks to the end of the block list.
+    self.graph.move_block_to_rear(exit_block)
+    self.graph.move_block_to_rear(raise_block)
     self.graph.compact()
 
   def visit(self, node, current_block):
@@ -678,24 +689,39 @@ class ControlFlowVisitor(object):
     if frames is None:
       return
 
+    branch = None
     for frame in frames:
       if frame.kind == Frame.TRY_FINALLY:
         # Exit to finally and have finally exit to whatever's next...
         final_block = frame.blocks['final_block']
-        block.add_exit(final_block, interrupting=interrupting)
+        block.add_exit(final_block, interrupting=interrupting, branch=branch)
         block = frame.blocks['final_block_end']
         interrupting = False
+        # "True" indicates the path taken after finally if an error has been raised.
+        branch = True
       elif frame.kind == Frame.TRY_EXCEPT:
         handler_block = frame.blocks['handler_block']
-        block.add_exit(handler_block, interrupting=interrupting)
-        interrupting = False  # return...
+        block.add_exit(handler_block, interrupting=interrupting, branch=branch)
+        # This will be the last frame in frames.
       elif frame.kind == Frame.FUNCTION:
         raise_block = frame.blocks['raise_block']
-        block.add_exit(raise_block, interrupting=interrupting)
+        block.add_exit(raise_block, interrupting=interrupting, branch=branch)
+        # This will be the last frame in frames.
+      elif frame.kind == Frame.MODULE:
+        raise_block = frame.blocks['raise_block']
+        block.add_exit(raise_block, interrupting=interrupting, branch=branch)
+        # This will be the last frame in frames.
 
   def new_block(self, node=None, label=None, prunable=True):
     """Create a new block."""
     return self.graph.new_block(node=node, label=label, prunable=prunable)
+
+  def enter_module_frame(self, exit_block, raise_block):
+    # The entire module is in the interior of the frame.
+    # The exit block and raise block are the exits from the frame.
+    self.frames.append(Frame(Frame.MODULE,
+                             exit_block=exit_block,
+                             raise_block=raise_block))
 
   def enter_loop_frame(self, continue_block, break_block):
     # The loop body is the interior of the frame.
@@ -807,8 +833,12 @@ class ControlFlowVisitor(object):
         # A function frame's raise_block catches any exception that reaches it.
         frames.append(frame)
         return frames
+      if frame.kind == Frame.MODULE:
+        # A module frame's raise_block catches any exception that reaches it.
+        frames.append(frame)
+        return frames
     # There is no frame to fully catch the exception.
-    return None
+    raise ValueError('No frame exists to catch the exception.')
 
   def visit_Module(self, node, current_block):
     return self.visit_list(node.body, current_block)
@@ -895,6 +925,8 @@ class ControlFlowVisitor(object):
     fn_block = self.visit_list(body, fn_block)
     fn_block.add_exit(return_block)
     self.exit_frame()
+    self.graph.move_block_to_rear(return_block)
+    self.graph.move_block_to_rear(raise_block)
 
   def handle_argument_defaults(self, node, current_block):
     """Add Instructions for all of a FunctionDef's default values.
@@ -1026,6 +1058,7 @@ class ControlFlowVisitor(object):
     else:
       test_block.add_exit(after_block, branch=False)
 
+    self.graph.move_block_to_rear(after_block)
     return after_block
 
   def visit_Try(self, node, current_block):
@@ -1060,9 +1093,12 @@ class ControlFlowVisitor(object):
       bare_handler_block = None
 
     if node.finalbody:
+      # TODO(dbieber): Move final_block and all blocks from visiting it
+      # to after try blocks.
       final_block = self.new_block(node=node, label='final_block')
       final_block_end = self.visit_list(node.finalbody, final_block)
-      final_block_end.add_exit(after_block)
+      # "False" indicates the path taken after finally if no error has been raised.
+      final_block_end.add_exit(after_block, branch=False)
       self.enter_try_finally_frame(final_block, final_block_end)
     else:
       final_block = after_block
@@ -1104,6 +1140,7 @@ class ControlFlowVisitor(object):
     if node.finalbody:
       self.exit_frame()  # Exit the try-finally frame.
 
+    self.graph.move_block_to_rear(after_block)
     return after_block
 
   def handle_ExceptHandler(self, handler, handler_block, handler_body_block,
@@ -1134,10 +1171,13 @@ class ControlFlowVisitor(object):
       self.add_new_instruction(handler_block, handler.type)
     # An ExceptHandler header can only have a single Instruction, so there is
     # only one handler_block BasicBlock.
-    handler_block.add_exit(handler_body_block)
+    # Here "True" indicates the exception header matches the raised error.
+    handler_block.add_exit(handler_body_block, branch=True)
 
     if previous_handler_block_end is not None:
-      previous_handler_block_end.add_exit(handler_block)
+      # Here "False" indicates the previous exception header did not match the
+      # raised error.
+      previous_handler_block_end.add_exit(handler_block, branch=False)
     previous_handler_block_end = handler_block
 
     if handler.name is not None:
