@@ -365,6 +365,12 @@ class BasicBlock(object):
     for branch_decision, branch_exit in self.branches.copy().items():
       if branch_exit is block:
         del self.branches[branch_decision]
+    for branch_decision, branch_exit in self.except_branches.copy().items():
+      if branch_exit is block:
+        del self.except_branches[branch_decision]
+    for branch_decision, branch_exit in self.reraise_branches.copy().items():
+      if branch_exit is block:
+        del self.reraise_branches[branch_decision]
 
   def can_prune(self):
     return self.is_empty() and self.prunable
@@ -385,6 +391,8 @@ class BasicBlock(object):
       exits_from_middle = prev_block.exits_from_middle.copy()
       exits_from_end = prev_block.exits_from_end.copy()
       branches = prev_block.branches.copy()
+      except_branches = prev_block.except_branches.copy()
+      reraise_branches = prev_block.reraise_branches.copy()
       for next_block in nexts:
         if self in exits_from_middle:
           prev_block.add_exit(next_block, interrupting=True)
@@ -394,6 +402,12 @@ class BasicBlock(object):
         for branch_decision, branch_exit in branches.items():
           if branch_exit is self:
             prev_block.branches[branch_decision] = next_block
+        for branch_decision, branch_exit in except_branches.items():
+          if branch_exit is self:
+            prev_block.except_branches[branch_decision] = next_block
+        for branch_decision, branch_exit in reraise_branches.items():
+          if branch_exit is self:
+            prev_block.reraise_branches[branch_decision] = next_block
 
     for prev_block in prevs:
       prev_block.remove_exit(self)
@@ -427,6 +441,10 @@ class BasicBlock(object):
 
     for branch_decision, branch_exit in next_block.branches.items():
       self.branches[branch_decision] = branch_exit
+    for branch_decision, branch_exit in next_block.except_branches.items():
+      self.except_branches[branch_decision] = branch_exit
+    for branch_decision, branch_exit in next_block.reraise_branches.items():
+      self.reraise_branches[branch_decision] = branch_exit
 
     self.remove_exit(next_block)
     for block in next_block.next.copy():
