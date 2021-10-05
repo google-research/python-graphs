@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Computes the control flow graph for a Python program from its AST.
-"""
+"""Computes the control flow graph for a Python program from its AST."""
 
+import itertools
 import uuid
 
 from absl import logging  # pylint: disable=unused-import
@@ -533,6 +533,21 @@ class ControlFlowNode(object):
       branch leads to the exit, since there are no exit ControlFlowNodes in a
       ControlFlowGraph.
     """
+    return self.get_branches(
+        include_except_branches=False,
+        include_reraise_branches=False)
+
+  def get_branches(self, include_except_branches=False, include_reraise_branches=False):
+    """Returns the branch options available at the end of this node.
+
+    Returns:
+      A dictionary with possible keys True and False, and values given by the
+      node that is reached by taking the True/False branch. An empty dictionary
+      indicates that there are no branches to take, and so self.next gives the
+      next node (in a set of size 1). A value of None indicates that taking that
+      branch leads to the exit, since there are no exit ControlFlowNodes in a
+      ControlFlowGraph.
+    """
     if self.block is None:
       return {}  # We're not in a block. No branch decision.
     index_in_block = self.block.index_of(self)
@@ -540,7 +555,14 @@ class ControlFlowNode(object):
       return {}  # We're not yet at the end of the block. No branch decision.
 
     branches = {}  # We're at the end of the block.
-    for key, next_block in self.block.branches.items():
+
+    all_branches = [self.block.branches.items()]
+    if include_except_branches:
+      all_branches.append(self.block.except_branches.items())
+    if include_reraise_branches:
+      all_branches.append(self.block.reraise_branches.items())
+
+    for key, next_block in itertools.chain(*all_branches):
       if next_block.control_flow_nodes:
         branches[key] = next_block.control_flow_nodes[0]
       else:
