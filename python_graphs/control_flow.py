@@ -691,9 +691,9 @@ class ControlFlowVisitor(object):
     if frames is None:
       return
 
-    reraise_branch = None
     # reraise_branch indicates whether the a raise is a reraise of an earlier exception.
     # This is True after raising through a finally block, and None otherwise.
+    reraise_branch = None
 
     for frame in frames:
       if frame.kind == Frame.TRY_FINALLY:
@@ -707,15 +707,15 @@ class ControlFlowVisitor(object):
         reraise_branch = True
       elif frame.kind == Frame.TRY_EXCEPT:
         handler_block = frame.blocks['handler_block']
-        block.add_exit(handler_block, interrupting=interrupting, reraise_branch=reraise_branch)
+        block.add_exit(handler_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
       elif frame.kind == Frame.FUNCTION:
         raise_block = frame.blocks['raise_block']
-        block.add_exit(raise_block, interrupting=interrupting, reraise_branch=reraise_branch)
+        block.add_exit(raise_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
       elif frame.kind == Frame.MODULE:
         raise_block = frame.blocks['raise_block']
-        block.add_exit(raise_block, interrupting=interrupting, reraise_branch=reraise_branch)
+        block.add_exit(raise_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
 
   def new_block(self, node=None, label=None, prunable=True):
