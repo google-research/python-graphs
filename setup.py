@@ -30,14 +30,15 @@ DEPENDENCIES = [
     'absl-py',
     'astunparse',
     'gast',
-    'six',
+    'networkx',
     'pygraphviz',
+    'six',
 ]
 
 TEST_DEPENDENCIES = [
 ]
 
-VERSION = '1.0.1'
+VERSION = '1.1.0'
 URL = 'https://github.com/google-research/python-graphs'
 
 setup(
