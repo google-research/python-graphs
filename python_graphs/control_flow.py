@@ -300,6 +300,9 @@ class BasicBlock(object):
     self.control_flow_node_indexes = None
 
     self.branches = {}
+    self.except_branches = {}
+    self.reraise_branches = {}
+
     self.exits_from_middle = set()
     self.exits_from_end = set()
     self.node = node
@@ -332,13 +335,18 @@ class BasicBlock(object):
     """Whether this block exits to `block` in the case of an exception."""
     return block in self.next and block in self.exits_from_middle
 
-  def add_exit(self, block, interrupting=False, branch=None):
+  def add_exit(self, block, interrupting=False,
+               branch=None, except_branch=None, reraise_branch=None):
     """Adds an exit from this block to `block`."""
     self.next.add(block)
     block.prev.add(self)
 
     if branch is not None:
       self.branches[branch] = block
+    if except_branch is not None:
+      self.except_branches[except_branch] = block
+    if reraise_branch is not None:
+      self.reraise_branches[reraise_branch] = block
 
     if interrupting:
       self.exits_from_middle.add(block)
@@ -661,7 +669,7 @@ class ControlFlowVisitor(object):
     if not block.exits_from_middle:
       self.raise_through_frames(block, interrupting=True)
 
-  def raise_through_frames(self, block, interrupting=True, branch=None):
+  def raise_through_frames(self, block, interrupting=True, except_branch=None):
     """Adds exits for the control flow of a raised exception.
 
     `interrupting` means the exit can occur at any point (exit_from_middle).
@@ -675,32 +683,39 @@ class ControlFlowVisitor(object):
       block: The block where the exception's control flow begins.
       interrupting: Whether the exception can be raised from any point in block.
         If False, the exception is only raised from the end of block.
+      except_branch: False indicates the node raising is doing so the because an exception
+        header did not match the raised error. None indicates otherwise.
     """
     frames = self.get_current_exception_handling_frames()
 
     if frames is None:
       return
 
+    # reraise_branch indicates whether the a raise is a reraise of an earlier exception.
+    # This is True after raising through a finally block, and None otherwise.
+    reraise_branch = None
+
     for frame in frames:
       if frame.kind == Frame.TRY_FINALLY:
         # Exit to finally and have finally exit to whatever's next...
         final_block = frame.blocks['final_block']
-        block.add_exit(final_block, interrupting=interrupting, branch=branch)
+        block.add_exit(final_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         block = frame.blocks['final_block_end']
         interrupting = False
         # "True" indicates the path taken after finally if an error has been raised.
-        branch = True
+        except_branch = None
+        reraise_branch = True
       elif frame.kind == Frame.TRY_EXCEPT:
         handler_block = frame.blocks['handler_block']
-        block.add_exit(handler_block, interrupting=interrupting, branch=branch)
+        block.add_exit(handler_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
       elif frame.kind == Frame.FUNCTION:
         raise_block = frame.blocks['raise_block']
-        block.add_exit(raise_block, interrupting=interrupting, branch=branch)
+        block.add_exit(raise_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
       elif frame.kind == Frame.MODULE:
         raise_block = frame.blocks['raise_block']
-        block.add_exit(raise_block, interrupting=interrupting, branch=branch)
+        block.add_exit(raise_block, interrupting=interrupting, except_branch=except_branch, reraise_branch=reraise_branch)
         # This will be the last frame in frames.
 
   def new_block(self, node=None, label=None, prunable=True):
@@ -1098,7 +1113,7 @@ class ControlFlowVisitor(object):
       final_block = self.new_block(node=node, label='final_block')
       final_block_end = self.visit_list(node.finalbody, final_block)
       # "False" indicates the path taken after finally if no error has been raised.
-      final_block_end.add_exit(after_block, branch=False)
+      final_block_end.add_exit(after_block, reraise_branch=False)
       self.enter_try_finally_frame(final_block, final_block_end)
     else:
       final_block = after_block
@@ -1132,7 +1147,8 @@ class ControlFlowVisitor(object):
       # If no exceptions match, then raise up through the frames.
       # (A bare-except will always match.)
       # Here "False" indicates the final exception header did not match the raised error.
-      self.raise_through_frames(previous_handler_block_end, interrupting=False, branch=False)
+      self.raise_through_frames(
+          previous_handler_block_end, interrupting=False, except_branch=False)
 
     if node.orelse:
       else_block = self.visit_list(node.orelse, else_block)
@@ -1173,12 +1189,12 @@ class ControlFlowVisitor(object):
     # An ExceptHandler header can only have a single Instruction, so there is
     # only one handler_block BasicBlock.
     # Here "True" indicates the exception header matches the raised error.
-    handler_block.add_exit(handler_body_block, branch=True)
+    handler_block.add_exit(handler_body_block, except_branch=True)
 
     if previous_handler_block_end is not None:
       # Here "False" indicates the previous exception header did not match the
       # raised error.
-      previous_handler_block_end.add_exit(handler_block, branch=False)
+      previous_handler_block_end.add_exit(handler_block, except_branch=False)
     previous_handler_block_end = handler_block
 
     if handler.name is not None:
