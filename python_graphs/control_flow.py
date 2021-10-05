@@ -684,10 +684,7 @@ class ControlFlowVisitor(object):
       interrupting: Whether the exception can be raised from any point in block.
         If False, the exception is only raised from the end of block.
       except_branch: False indicates the node raising is doing so the because an exception
-        header did not match the raised error.
-      reraise_branch: Indicates whether the raise is a reraise of an earlier exception.
-        This is True after raising through a finally block, False when raising from the
-        final except block in a chain of excepts, and None otherwise.
+        header did not match the raised error. None indicates otherwise.
     """
     frames = self.get_current_exception_handling_frames()
 
@@ -695,6 +692,9 @@ class ControlFlowVisitor(object):
       return
 
     reraise_branch = None
+    # reraise_branch indicates whether the a raise is a reraise of an earlier exception.
+    # This is True after raising through a finally block, and None otherwise.
+
     for frame in frames:
       if frame.kind == Frame.TRY_FINALLY:
         # Exit to finally and have finally exit to whatever's next...
