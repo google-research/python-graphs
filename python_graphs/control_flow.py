@@ -562,9 +562,9 @@ class ControlFlowNode(object):
       A dictionary with possible keys True and False, and values given by the
       node that is reached by taking the True/False branch. An empty dictionary
       indicates that there are no branches to take, and so self.next gives the
-      next node (in a set of size 1). A value of None indicates that taking that
-      branch leads to the exit, since there are no exit ControlFlowNodes in a
-      ControlFlowGraph.
+      next node (in a set of size 1). A value of '<exit>' or '<raise>' indicates that
+      taking that branch leads to the exit or raise block, since there are no exit
+      ControlFlowNodes in a ControlFlowGraph.
     """
     if self.block is None:
       return {}  # We're not in a block. No branch decision.
@@ -588,7 +588,7 @@ class ControlFlowNode(object):
         # is nonempty. This is guaranteed by the pruning phase of control flow
         # graph construction.
         assert not next_block.next
-        branches[key] = None  # Indicates exit; there is no node to return.
+        branches[key] = next_block.label  # Indicates exit or raise; there is no node to return.
     return branches
 
   def has_label(self, label):
