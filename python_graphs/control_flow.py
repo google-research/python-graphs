@@ -109,7 +109,10 @@ class ControlFlowGraph(object):
     if self.start_block.exits_from_end:
       assert len(self.start_block.exits_from_end) == 1
       first_block = next(iter(self.start_block.exits_from_end))
-      return first_block.control_flow_nodes[0]
+      if first_block.control_flow_nodes:
+        return first_block.control_flow_nodes[0]
+      else:
+        return final_block.label
 
   def get_control_flow_nodes_by_ast_node(self, node):
     return six.moves.filter(
