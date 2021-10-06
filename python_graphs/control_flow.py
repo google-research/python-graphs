@@ -103,6 +103,14 @@ class ControlFlowGraph(object):
       for node in block.control_flow_nodes:
         yield node.instruction
 
+  def get_start_control_flow_node(self):
+    if self.start_block.control_flow_nodes:
+      return self.start_block.control_flow_nodes[0]
+    if self.start_block.exits_from_end:
+      assert len(self.start_block.exits_from_end) == 1
+      first_block = next(iter(self.start_block.exits_from_end))
+      return first_block.control_flow_nodes[0]
+
   def get_control_flow_nodes_by_ast_node(self, node):
     return six.moves.filter(
         lambda control_flow_node: control_flow_node.instruction.node == node,
@@ -1174,8 +1182,6 @@ class ControlFlowVisitor(object):
       bare_handler_block = None
 
     if node.finalbody:
-      # TODO(dbieber): Move final_block and all blocks from visiting it
-      # to after try blocks.
       final_block = self.new_block(node=node, label='final_block')
       final_block_end = self.visit_list(node.finalbody, final_block)
       # "False" indicates the path taken after finally if no error has been raised.
@@ -1369,11 +1375,12 @@ class ControlFlowVisitor(object):
       after_block: An unreachable block for code that follows the raise
         statement.
     """
-    del current_block
+    self.raise_through_frames(current_block, interrupting=False)
     # The Raise statement is an Instruction. Don't visit children.
 
     # Note there is no exit to the after_block. It is unreachable.
     after_block = self.new_block(node=node, label='after_block')
+
     return after_block
 
   def handle_ExitStatement(self, node, next_block, try_finally_frames,
