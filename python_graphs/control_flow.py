@@ -112,7 +112,7 @@ class ControlFlowGraph(object):
       if first_block.control_flow_nodes:
         return first_block.control_flow_nodes[0]
       else:
-        return final_block.label
+        return first_block.label
 
   def get_control_flow_nodes_by_ast_node(self, node):
     return six.moves.filter(
