@@ -1029,6 +1029,8 @@ class ControlFlowVisitor(object):
     for default in node.defaults:
       self.add_new_instruction(current_block, default)
     for default in node.kw_defaults:
+      if default is None:
+        continue
       self.add_new_instruction(current_block, default)
     return current_block
 
