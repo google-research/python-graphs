@@ -503,7 +503,10 @@ class ControlFlowNode(object):
 
   @property
   def next(self):
-    """Returns the set of possible next instructions."""
+    """Returns the set of possible next instructions.
+
+    This allows for taking exits from the middle (exceptions).
+    """
     if self.block is None:
       return None
     index_in_block = self.block.index_of(self)
@@ -518,6 +521,29 @@ class ControlFlowNode(object):
         # is nonempty. This is guaranteed by the pruning phase of control flow
         # graph construction.
         assert not next_block.next
+    return control_flow_nodes
+
+  @property
+  def next_from_end(self):
+    """Returns the set of possible next instructions.
+
+    This does not allow for taking exits from the middle (exceptions).
+    """
+    if self.block is None:
+      return None
+    index_in_block = self.block.index_of(self)
+    if len(self.block.control_flow_nodes) > index_in_block + 1:
+      return {self.block.control_flow_nodes[index_in_block + 1]}
+    control_flow_nodes = set()
+    for next_block in self.block.exits_from_end:
+      if next_block.control_flow_nodes:
+        control_flow_nodes.add(next_block.control_flow_nodes[0])
+      else:
+        # If next_block is empty, it isn't the case that some downstream block
+        # is nonempty. This is guaranteed by the pruning phase of control flow
+        # graph construction.
+        assert not next_block.next
+        control_flow_nodes.add(next_block.label)
     return control_flow_nodes
 
   @property
