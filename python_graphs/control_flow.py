@@ -103,6 +103,17 @@ class ControlFlowGraph(object):
       for node in block.control_flow_nodes:
         yield node.instruction
 
+  def get_start_control_flow_node(self):
+    if self.start_block.control_flow_nodes:
+      return self.start_block.control_flow_nodes[0]
+    if self.start_block.exits_from_end:
+      assert len(self.start_block.exits_from_end) == 1
+      first_block = next(iter(self.start_block.exits_from_end))
+      if first_block.control_flow_nodes:
+        return first_block.control_flow_nodes[0]
+      else:
+        return first_block.label
+
   def get_control_flow_nodes_by_ast_node(self, node):
     return six.moves.filter(
         lambda control_flow_node: control_flow_node.instruction.node == node,
@@ -503,7 +514,10 @@ class ControlFlowNode(object):
 
   @property
   def next(self):
-    """Returns the set of possible next instructions."""
+    """Returns the set of possible next instructions.
+
+    This allows for taking exits from the middle (exceptions).
+    """
     if self.block is None:
       return None
     index_in_block = self.block.index_of(self)
@@ -518,6 +532,29 @@ class ControlFlowNode(object):
         # is nonempty. This is guaranteed by the pruning phase of control flow
         # graph construction.
         assert not next_block.next
+    return control_flow_nodes
+
+  @property
+  def next_from_end(self):
+    """Returns the set of possible next instructions.
+
+    This does not allow for taking exits from the middle (exceptions).
+    """
+    if self.block is None:
+      return None
+    index_in_block = self.block.index_of(self)
+    if len(self.block.control_flow_nodes) > index_in_block + 1:
+      return {self.block.control_flow_nodes[index_in_block + 1]}
+    control_flow_nodes = set()
+    for next_block in self.block.exits_from_end:
+      if next_block.control_flow_nodes:
+        control_flow_nodes.add(next_block.control_flow_nodes[0])
+      else:
+        # If next_block is empty, it isn't the case that some downstream block
+        # is nonempty. This is guaranteed by the pruning phase of control flow
+        # graph construction.
+        assert not next_block.next
+        control_flow_nodes.add(next_block.label)
     return control_flow_nodes
 
   @property
@@ -562,9 +599,9 @@ class ControlFlowNode(object):
       A dictionary with possible keys True and False, and values given by the
       node that is reached by taking the True/False branch. An empty dictionary
       indicates that there are no branches to take, and so self.next gives the
-      next node (in a set of size 1). A value of None indicates that taking that
-      branch leads to the exit, since there are no exit ControlFlowNodes in a
-      ControlFlowGraph.
+      next node (in a set of size 1). A value of '<exit>' or '<raise>' indicates that
+      taking that branch leads to the exit or raise block, since there are no exit
+      ControlFlowNodes in a ControlFlowGraph.
     """
     if self.block is None:
       return {}  # We're not in a block. No branch decision.
@@ -588,7 +625,7 @@ class ControlFlowNode(object):
         # is nonempty. This is guaranteed by the pruning phase of control flow
         # graph construction.
         assert not next_block.next
-        branches[key] = None  # Indicates exit; there is no node to return.
+        branches[key] = next_block.label  # Indicates exit or raise; there is no node to return.
     return branches
 
   def has_label(self, label):
@@ -992,6 +1029,8 @@ class ControlFlowVisitor(object):
     for default in node.defaults:
       self.add_new_instruction(current_block, default)
     for default in node.kw_defaults:
+      if default is None:
+        continue
       self.add_new_instruction(current_block, default)
     return current_block
 
@@ -1148,8 +1187,6 @@ class ControlFlowVisitor(object):
       bare_handler_block = None
 
     if node.finalbody:
-      # TODO(dbieber): Move final_block and all blocks from visiting it
-      # to after try blocks.
       final_block = self.new_block(node=node, label='final_block')
       final_block_end = self.visit_list(node.finalbody, final_block)
       # "False" indicates the path taken after finally if no error has been raised.
@@ -1343,11 +1380,12 @@ class ControlFlowVisitor(object):
       after_block: An unreachable block for code that follows the raise
         statement.
     """
-    del current_block
+    self.raise_through_frames(current_block, interrupting=False)
     # The Raise statement is an Instruction. Don't visit children.
 
     # Note there is no exit to the after_block. It is unreachable.
     after_block = self.new_block(node=node, label='after_block')
+
     return after_block
 
   def handle_ExitStatement(self, node, next_block, try_finally_frames,
