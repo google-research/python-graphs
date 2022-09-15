@@ -17,6 +17,10 @@ To install python_graphs with pip, run: `pip install python_graphs`.
 
 To install python_graphs from source, run: `python setup.py develop`.
 
+## Quickstart
+
+To start you off check out the [existing examples directory](https://github.com/google-research/python-graphs/tree/main/python_graphs/examples)
+
 ## Common Tasks
 
 **Generate a control flow graph from a function `fn`:**
