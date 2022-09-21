@@ -21,6 +21,6 @@ PYTHON_VERSION=${PYTHON_VERSION:-2.7}
 
 pip install --upgrade setuptools pip
 pip install --upgrade pylint pytest pytest-pylint pytest-runner
-apt install libgraphviz-dev
+sudo apt install libgraphviz-dev
 python setup.py develop
 python -m pytest  # Run the tests.
