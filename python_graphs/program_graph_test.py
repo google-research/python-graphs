@@ -29,7 +29,7 @@ from python_graphs import program_graph_test_components as pgtc
 from python_graphs import program_utils
 
 
-def test_components():
+def get_test_components():
   """Generates functions from two sets of test components.
 
   Yields:
@@ -55,7 +55,7 @@ class ProgramGraphTest(absltest.TestCase):
     self.assertNotIn(edge, graph.edges)
 
   def test_get_program_graph_test_components(self):
-    self.analyze_get_program_graph(test_components(), start=0)
+    self.analyze_get_program_graph(get_test_components(), start=0)
 
   def analyze_get_program_graph(self, program_generator, start=0):
     # TODO(dbieber): Remove the counting and logging logic from this method,
