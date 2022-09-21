@@ -47,3 +47,33 @@ def cyclomatic_complexity2(control_flow_graph):
   e = sum(len(block.exits_from_end) for block in control_flow_graph.blocks)
   n = len(control_flow_graph.blocks)
   return e - n + 2 * p
+
+
+def cyclomatic_complexity3(control_flow_graph):
+  """Computes the cyclomatic complexity of a program from its cfg."""
+  start_block = control_flow_graph.start_block
+  enter_blocks = control_flow_graph.get_enter_blocks()
+
+  new_blocks = [start_block]
+  seen_block_ids = {id(start_block)}
+  num_connected_components = 1
+  num_edges = 0
+
+  for enter_block in enter_blocks:
+    new_blocks.append(enter_block)
+    seen_block_ids.add(id(enter_block))
+    num_connected_components += 1
+
+  while new_blocks:
+    block = new_blocks.pop()
+    for next_block in block.exits_from_end:
+      num_edges += 1
+      if id(next_block) not in seen_block_ids:
+        new_blocks.append(next_block)
+        seen_block_ids.add(id(next_block))
+  num_nodes = len(seen_block_ids)
+
+  p = num_connected_components
+  e = num_edges
+  n = num_nodes
+  return e - n + 2 * p
