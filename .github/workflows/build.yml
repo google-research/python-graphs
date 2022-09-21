@@ -1,0 +1,26 @@
+name: python_graphs
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9]
+
+    steps:
+     - name: Checkout the repository
+       uses: actions/checkout@v2
+
+     - name: Set up Python ${{ matrix.python-version }}
+       uses: actions/setup-python@v2
+       with:
+         python-version: ${{ matrix.python-version }}
+
+     # Build using the build.sh script.
+     - name: Run build script
+       shell: bash
+       run: ./.github/scripts/build.sh
+       env:
+         PYTHON_VERSION: ${{ matrix.python-version }}

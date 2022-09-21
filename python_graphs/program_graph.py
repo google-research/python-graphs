@@ -33,6 +33,8 @@ from python_graphs import data_flow
 from python_graphs import instruction as instruction_module
 from python_graphs import program_graph_dataclasses as pb
 from python_graphs import program_utils
+from python_graphs import unparser_patch  # pylint: disable=unused-import
+
 import six
 from six.moves import builtins
 from six.moves import filter
