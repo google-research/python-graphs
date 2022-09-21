@@ -113,7 +113,7 @@ def analyze_graph(graph, identifier):
   num_edges = program_graph_analysis.num_edges(graph)
   ast_height = program_graph_analysis.graph_ast_height(graph)
 
-  degree_percentiles = [25, 50, 90]
+  degree_percentiles = [10, 25, 50, 75, 90]
   degrees = get_percentiles(program_graph_analysis.degrees(graph),
                             degree_percentiles)
   in_degrees = get_percentiles(program_graph_analysis.in_degrees(graph),
