@@ -32,7 +32,7 @@ def to_graphviz(graph):
   for unused_key, node in graph.nodes.items():
     node_attrs = {}
     if node.ast_type:
-      node_attrs['label'] = six.ensure_binary(node.ast_type, 'utf-8')
+      node_attrs['label'] = six.ensure_str(node.ast_type, 'utf-8')
     else:
       node_attrs['shape'] = 'point'
     node_type_colors = {
