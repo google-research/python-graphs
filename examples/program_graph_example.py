@@ -19,7 +19,7 @@ in program_graph_test_components.py. Saves the resulting images to the directory
 `out`.
 
 Usage:
-python -m python_graphs.examples.program_graph_example
+python -m examples.program_graph_example
 """
 
 import inspect

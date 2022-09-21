@@ -19,7 +19,7 @@ in control_flow_test_components.py. Saves the resulting images to the directory
 `out`.
 
 Usage:
-python -m python_graphs.examples.control_flow_example
+python -m examples.control_flow_example
 """
 
 import inspect

@@ -18,7 +18,7 @@ For each of the functions in control_flow_test_components.py, this computes and
 prints the function's cyclomatic complexity.
 
 Usage:
-python -m python_graphs.examples.cyclomatic_complexity_example
+python -m examples.cyclomatic_complexity_example
 """
 
 import inspect
