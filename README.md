@@ -8,10 +8,14 @@ machine learning applications. It includes the following modules:
 *   `data_flow` For computing data flow analyses of Python programs.
 *   `program_graph` For computing graphs statically to represent arbitrary
     Python programs or functions.
-*   `cyclomatic_complexity` For computing the cyclomatic complexity of a Python function.
-
+*   `cyclomatic_complexity` For computing the cyclomatic complexity of a Python
+    function.
 
 ## Installation
+
+python_graphs uses pygraphviz, which has
+[special installation instructions][pygraphviz-installation]. Follow those
+first.
 
 To install python_graphs with pip, run: `pip install python_graphs`.
 
@@ -42,6 +46,8 @@ graph = control_flow.get_control_flow_graph(fn)
 value = cyclomatic_complexity.cyclomatic_complexity(graph)
 ```
 
----
+--------------------------------------------------------------------------------
 
 This is not an officially supported Google product.
+
+[pygraphviz-installation]: https://pygraphviz.github.io/documentation/stable/install.html
