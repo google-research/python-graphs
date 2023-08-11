@@ -171,8 +171,12 @@ class ProgramGraph(object):
   def contains_ast_node(self, ast_node):
     return id(ast_node) in self.ast_id_to_program_graph_node
 
-  def get_ast_nodes_of_type(self, ast_type):
-    for node in six.itervalues(self.nodes):
+  def get_ast_nodes_of_type(self, ast_type, ast_node=None):
+    if ast_node:
+      nodes = self.walk_ast_descendants(ast_node)
+    else:
+      nodes = self.nodes
+    for node in six.itervalues(nodes):
       if node.node_type == pb.NodeType.AST_NODE and node.ast_type == ast_type:
         yield node
 
